@@ -48,10 +48,10 @@ llvm-profdata-17 merge -o ${1}.profdata default.profraw
 opt-17 -passes="pgo-instr-use" -o ${1}.profdata.bc -pgo-test-profile-file=${1}.profdata < ${1}.bc
 
 # Uncomment this and disable the cleanup if you want to "see" the instumented IR.
-llvm-dis-17 ${1}.profdata.bc -o ${1}.prof.ll
+# llvm-dis-17 ${1}.profdata.bc -o ${1}.prof.ll
 
 # Runs your pass on the instrumented code.
 opt-17 --disable-output -load-pass-plugin="${PATH2LIB}" -passes="${PASS}" ${1}.profdata.bc
 
 # Cleanup: Remove this if you want to retain the created files.
-# rm -f *.in *.in.Z default.profraw *_prof *_fplicm *.bc *.profdata *_output *.ll words
+rm -f *.in *.in.Z default.profraw *_prof *_fplicm *.bc *.profdata *_output *.ll words

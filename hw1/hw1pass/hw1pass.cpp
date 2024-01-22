@@ -20,6 +20,9 @@ struct HW1Pass : public PassInfoMixin<HW1Pass> {
     llvm::BranchProbabilityAnalysis::Result &bpi = FAM.getResult<BranchProbabilityAnalysis>(F);
 
     // Add your code here
+    // print the name of function
+    std::cout << F.getName().str() << std::endl;
+    // TODO: loop over BBs
 
     return PreservedAnalyses::all();
   }
