@@ -23,7 +23,11 @@ struct HW1Pass : public PassInfoMixin<HW1Pass> {
     // print the name of function
     std::cout << F.getName().str() << std::endl;
     // TODO: loop over BBs
-
+    for (BasicBlock& BB : F) {
+      for (Instruction& I : BB) {
+        std::cout << I.getOpcodeName() << std::endl;
+      }
+    }
     return PreservedAnalyses::all();
   }
 };
