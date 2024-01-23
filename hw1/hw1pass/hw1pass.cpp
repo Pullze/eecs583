@@ -22,33 +22,36 @@ struct HW1Pass : public PassInfoMixin<HW1Pass> {
     llvm::BranchProbabilityAnalysis::Result &bpi = FAM.getResult<BranchProbabilityAnalysis>(F);
 
     // Add your code here
-    int inst_cnt = 0;
-    int biased_br_cnt, unbiased_br_cnt, int_alu_cnt, fp_alu_cnt, mem_cnt, others_cnt = 0;
-    int* cat_list[6] = {&int_alu_cnt, &fp_alu_cnt, &mem_cnt, &biased_br_cnt, &unbiased_br_cnt, &others_cnt};
+    u_int64_t inst_cnt = 0;
+    u_int64_t biased_br_cnt = 0, unbiased_br_cnt  = 0, int_alu_cnt = 0, fp_alu_cnt = 0, mem_cnt = 0, others_cnt = 0;
+    u_int64_t* cat_list[6] = {&int_alu_cnt, &fp_alu_cnt, &mem_cnt, &biased_br_cnt, &unbiased_br_cnt, &others_cnt};
 
     // TODO: loop over BBs
     for (BasicBlock& BB : F) {
       // int bb_biased_br_cnt, bb_unbiased_br_cnt, bb_int_alu_cnt, bb_fp_alu_cnt, bb_mem_cnt, bb_others_cnt = 0;
+      uint64_t bb_cnt = bfi.getBlockProfileCount(&BB).value();
+
       for (Instruction& I : BB) {
         unsigned int opcode = I.getOpcode();
+
         if (isBr(opcode)) {
           if (isBiasedBr(BB, bpi)) {
-            biased_br_cnt += bfi.getBlockFreq(&BB).getFrequency();
+            biased_br_cnt += bb_cnt;
           } else {
-            unbiased_br_cnt += bfi.getBlockFreq(&BB).getFrequency();
+            unbiased_br_cnt += bb_cnt;
           }
         } else if (isIALU(opcode)) {
-          int_alu_cnt += bfi.getBlockFreq(&BB).getFrequency();
+          int_alu_cnt += bb_cnt;
         } else if (isFPALU(opcode)) {
-          fp_alu_cnt += bfi.getBlockFreq(&BB).getFrequency();
+          fp_alu_cnt += bb_cnt;
         } else if (isMem(opcode)) {
-          mem_cnt += bfi.getBlockFreq(&BB).getFrequency();
+          mem_cnt += bb_cnt;
         } else {
-          others_cnt += bfi.getBlockFreq(&BB).getFrequency();
+          others_cnt += bb_cnt;
         }
       }
-
-      inst_cnt += BB.size() * bfi.getBlockFreq(&BB).getFrequency();
+      
+      inst_cnt += BB.size() * bb_cnt;
     }
     // std::cout << F.getName().str() << std::endl;
     // std::cout << inst_cnt << std::endl;
@@ -60,10 +63,10 @@ struct HW1Pass : public PassInfoMixin<HW1Pass> {
     // std::cout << others_cnt << std::endl;
     errs() << F.getName();
     errs() << ", " << inst_cnt;
-    for (int* cat : cat_list) { // iterate all categories
+    for (u_int64_t* cat : cat_list) { // iterate all categories
       // std::cout << *cat << std::endl;
       if (inst_cnt == 0) errs() << ", " << format("%.3f", 0.);
-      else errs() << ", " << format("%.3f", (float) ( (float) (*cat) / (float) inst_cnt));
+      else errs() << ", " << format("%.3f", (double_t) ( (double_t) (*cat) / (double_t) inst_cnt));
     }
     errs() << "\n";
     return PreservedAnalyses::all();
