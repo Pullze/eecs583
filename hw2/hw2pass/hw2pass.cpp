@@ -33,6 +33,10 @@
 
 /* *******Implementation Starts Here******* */
 // You can include more Header files here
+
+#include <vector>
+#include <set>
+
 /* *******Implementation Ends Here******* */
 
 using namespace llvm;
@@ -45,7 +49,48 @@ namespace {
       llvm::BranchProbabilityAnalysis::Result &bpi = FAM.getResult<BranchProbabilityAnalysis>(F);
       llvm::LoopAnalysis::Result &li = FAM.getResult<LoopAnalysis>(F);
       /* *******Implementation Starts Here******* */
-      // Your core logic should reside here.
+
+      std::vector<std::vector<llvm::BasicBlock*>> allFreqPath;
+      std::set<llvm::BasicBlock*> freqPath;
+      
+      // iterate over all loops
+      for (llvm::Loop *L : li) {
+        llvm::errs() << "Found a loop:\n";
+        L->dump();
+
+        // the header BB of the loop
+        llvm::BasicBlock *header = L->getHeader();
+        
+        // iterate all the BB in all the loops and find the frequent path.
+        llvm:: BasicBlock *BB = header;
+        freqPath.insert(header);
+        while (BB) {
+          llvm::errs() << "  Basic Block: " << BB->getName() << "\n";
+
+          // Analyze branch probabilities for the current block
+          llvm::BranchInst *branchInst = llvm::dyn_cast<llvm::BranchInst>(BB->getTerminator());
+          // check the terminator's edges and pick the most frequent (above 80% one)
+          if (branchInst) {
+            for (llvm::BasicBlock *succBB : successors(BB)) {
+              // if true, then this is part of frequenet path
+              if (bpi.getEdgeProbability(BB, succBB) > llvm::BranchProbability(80, 100)) {
+                auto res = freqPath.insert(succBB);
+                if (res.second != true) {
+                  llvm::errs() << "Path looped";
+                  break;
+                }
+                BB = succBB;
+              }
+            } 
+          }
+        }
+        
+        llvm::errs() << "Basic Block in Freq pth: \n";
+        for (llvm::BasicBlock *BB : freqPath) {
+          llvm::errs() << BB->getName() << "\n";
+        }
+      }
+
       /* *******Implementation Ends Here******* */
       // Your pass is modifying the source code. Figure out which analyses
       // are preserved and only return those, not all.
