@@ -50,8 +50,13 @@ namespace {
       llvm::LoopAnalysis::Result &li = FAM.getResult<LoopAnalysis>(F);
       /* *******Implementation Starts Here******* */
 
-      std::vector<std::vector<llvm::BasicBlock*>> allFreqPath;
+      std::set<llvm::LoadInst*> invariantLoads;
+      std::set<llvm::StoreInst*> freqStores;
+      std::set<llvm::StoreInst*> inFreqStores;
       std::set<llvm::BasicBlock*> freqPath;
+      std::set<llvm::BasicBlock*> inFreqPath;
+
+      llvm::BasicBlock* preHeader;
       
       // iterate over all loops
       for (llvm::Loop *L : li) {
@@ -59,6 +64,7 @@ namespace {
 
         // the header BB of the loop
         llvm::BasicBlock *header = L->getHeader();
+        preHeader = L->getLoopPreheader();
         llvm::errs() << "Loop header:\n " << *header << "\n";
         
         // iterate all the BB in all the loops and find the frequent path.
@@ -71,13 +77,10 @@ namespace {
 
           // Analyze branch probabilities for the current block
           llvm::BranchInst *branchInst = llvm::dyn_cast<llvm::BranchInst>(BB->getTerminator());
-          llvm::errs() << " br Inst:\n " << *branchInst << "\n";
           // check the terminator's edges and pick the most frequent (above 80% one)
           if (branchInst) {
+            llvm::errs() << " br Inst:\n " << *branchInst << "\n";
             for (llvm::BasicBlock *succBB : successors(BB)) {
-        //       // llvm::errs() << "  Successor:\n " << *succBB << "\n";
-        //       // llvm::errs() << "  Cond?: " << branchInst->isConditional() << "\n";
-        //       // llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
               if (branchInst->isConditional()) {
                 if (bpi.getEdgeProbability(BB, succBB) >= llvm::BranchProbability(80, 100)) {
                   llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
@@ -98,7 +101,68 @@ namespace {
         
         llvm::errs() << "\n\nBasic Block in Freq pth: \n";
         for (llvm::BasicBlock *BB : freqPath) {
-          llvm::errs() << *BB << "\n";
+          llvm::errs() << BB << "\n";
+        }
+
+        llvm::errs() << "\n\nBasic Block NOT in Freq pth: \n";
+        for (llvm::BasicBlock &BB : F) {
+          if (freqPath.find(&BB) == freqPath.end() && !BB.isEntryBlock() && !isExitBlock(BB)) {
+            inFreqPath.insert(&BB);
+            llvm::errs() << &BB << "  not in fp \n";
+          }
+        }
+
+        if (inFreqPath.empty()) {
+          llvm::errs() << "no infreq bb, fin ";
+          return PreservedAnalyses::all();
+        }
+
+        llvm::errs() << "\n\nLoop Preheader: \n";
+        llvm::errs() << preHeader << "\n";
+
+        // loop through the freq path and check all loads
+        // llvm::errs() << "Load in fp: \n";
+        for (llvm::BasicBlock *BB : freqPath) {
+          for (llvm::Instruction &I : *BB) {
+            llvm::LoadInst *loadInst = llvm::dyn_cast<llvm::LoadInst>(&I);
+            if (loadInst) {
+              invariantLoads.insert(loadInst);
+            }
+            llvm::StoreInst *storeInst = llvm::dyn_cast<llvm::StoreInst>(&I);
+            if (storeInst) {
+              freqStores.insert(storeInst);
+            }
+          }
+        }
+
+        for (llvm::BasicBlock *BB : inFreqPath) {
+          for (llvm::Instruction &I : *BB) {
+            llvm::StoreInst *storeInst = llvm::dyn_cast<llvm::StoreInst>(&I);
+            if (storeInst) {
+              inFreqStores.insert(storeInst);
+            }
+          }
+        }
+
+        llvm::errs() << "\n\nLD in frq: \n";
+        for (llvm::LoadInst* LI : invariantLoads) {
+          llvm::errs() << *LI << "\n";
+        }
+
+        llvm::errs() << "\n\nST in frq: \n";
+        for (llvm::StoreInst* SI : freqStores) {
+          llvm::errs() << *SI << "\n";
+        }
+
+        llvm::errs() << "\n\nST in INfrq: \n";
+        for (llvm::StoreInst* SI : inFreqStores) {
+          llvm::errs() << *SI << "\n";
+        }
+
+        for (llvm::LoadInst* LI : invariantLoads) {
+          for (llvm::StoreInst* SI : freqStores) {
+            
+          }
         }
       }
 
@@ -106,6 +170,12 @@ namespace {
       // Your pass is modifying the source code. Figure out which analyses
       // are preserved and only return those, not all.
       return PreservedAnalyses::all();
+    }
+
+    bool isExitBlock(llvm::BasicBlock &BB) {
+      llvm::ReturnInst *retInst =  llvm::dyn_cast<llvm::ReturnInst>(BB.getTerminator());
+      if (retInst) return true; 
+      else return false;
     }
   };
   struct HW2PerformancePass : public PassInfoMixin<HW2PerformancePass> {
