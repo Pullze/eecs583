@@ -162,6 +162,7 @@ namespace {
 
         for (llvm::LoadInst* LI : freqLoads) {
           bool findInFreq = false;
+
           llvm::Value* loadPointerValue = LI->getPointerOperand();
           llvm::errs() << "\n\n checking: " << *LI << '\n';
           // llvm::errs() << "ld opreand: " << *loadPointerValue << '\n';
@@ -176,13 +177,9 @@ namespace {
             }
           }
 
-          if (findInFreq) break;
-
-          // check if the operand has a unique only depends on st in infreq path
-          for (llvm::StoreInst* SI : inFreqStores) {
-            llvm::Value* storePointerValue = SI->getPointerOperand();
-
-          }
+          if (findInFreq) continue;
+          // llvm::errs() << "here\n";
+          invariantLoads.insert(LI);
         }
       }
 
@@ -190,6 +187,10 @@ namespace {
       for (llvm::LoadInst* LI : invariantLoads) {
         llvm::errs() << *LI << "\n";
       }
+
+      // hoist almost invarians lds to pre-header
+
+      // find the st dependson almost invariant in infreq-path and fix up
 
       /* *******Implementation Ends Here******* */
       // Your pass is modifying the source code. Figure out which analyses
