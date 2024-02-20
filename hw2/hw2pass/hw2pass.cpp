@@ -50,11 +50,12 @@ namespace {
       llvm::LoopAnalysis::Result &li = FAM.getResult<LoopAnalysis>(F);
       /* *******Implementation Starts Here******* */
 
-      std::set<llvm::LoadInst*> invariantLoads;
+      std::set<llvm::LoadInst*> freqLoads;
       std::set<llvm::StoreInst*> freqStores;
       std::set<llvm::StoreInst*> inFreqStores;
       std::set<llvm::BasicBlock*> freqPath;
       std::set<llvm::BasicBlock*> inFreqPath;
+      std::set<llvm::LoadInst*> invariantLoads;
 
       llvm::BasicBlock* preHeader;
       
@@ -126,7 +127,7 @@ namespace {
           for (llvm::Instruction &I : *BB) {
             llvm::LoadInst *loadInst = llvm::dyn_cast<llvm::LoadInst>(&I);
             if (loadInst) {
-              invariantLoads.insert(loadInst);
+              freqLoads.insert(loadInst);
             }
             llvm::StoreInst *storeInst = llvm::dyn_cast<llvm::StoreInst>(&I);
             if (storeInst) {
@@ -145,7 +146,7 @@ namespace {
         }
 
         llvm::errs() << "\n\nLD in frq: \n";
-        for (llvm::LoadInst* LI : invariantLoads) {
+        for (llvm::LoadInst* LI : freqLoads) {
           llvm::errs() << *LI << "\n";
         }
 
@@ -159,11 +160,35 @@ namespace {
           llvm::errs() << *SI << "\n";
         }
 
-        for (llvm::LoadInst* LI : invariantLoads) {
+        for (llvm::LoadInst* LI : freqLoads) {
+          bool findInFreq = false;
+          llvm::Value* loadPointerValue = LI->getPointerOperand();
+          llvm::errs() << "\n\n checking: " << *LI << '\n';
+          // llvm::errs() << "ld opreand: " << *loadPointerValue << '\n';
+
+          // if find a corresponding store in freqPath, then variant.
           for (llvm::StoreInst* SI : freqStores) {
-            
+            llvm::Value* storePointerValue = SI->getPointerOperand();
+            if (loadPointerValue == storePointerValue) {
+              llvm::errs() << "same op as " << *SI << '\n';
+              findInFreq = true;
+              break;
+            }
+          }
+
+          if (findInFreq) break;
+
+          // check if the operand has a unique only depends on st in infreq path
+          for (llvm::StoreInst* SI : inFreqStores) {
+            llvm::Value* storePointerValue = SI->getPointerOperand();
+
           }
         }
+      }
+
+      llvm::errs() << "\n\nInvariant LDs: \n";
+      for (llvm::LoadInst* LI : invariantLoads) {
+        llvm::errs() << *LI << "\n";
       }
 
       /* *******Implementation Ends Here******* */
