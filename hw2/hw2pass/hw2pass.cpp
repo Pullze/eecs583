@@ -56,38 +56,49 @@ namespace {
       // iterate over all loops
       for (llvm::Loop *L : li) {
         llvm::errs() << "Found a loop:\n";
-        L->dump();
 
         // the header BB of the loop
         llvm::BasicBlock *header = L->getHeader();
+        llvm::errs() << "Loop header:\n " << *header << "\n";
         
         // iterate all the BB in all the loops and find the frequent path.
         llvm:: BasicBlock *BB = header;
-        freqPath.insert(header);
+
         while (BB) {
-          llvm::errs() << "  Basic Block: " << BB->getName() << "\n";
+          llvm::BasicBlock *nextBB;
+          freqPath.insert(BB);
+          // llvm::errs() << "Basic Block:\n " << *BB << "\n";
 
           // Analyze branch probabilities for the current block
           llvm::BranchInst *branchInst = llvm::dyn_cast<llvm::BranchInst>(BB->getTerminator());
+          llvm::errs() << " br Inst:\n " << *branchInst << "\n";
           // check the terminator's edges and pick the most frequent (above 80% one)
           if (branchInst) {
             for (llvm::BasicBlock *succBB : successors(BB)) {
-              // if true, then this is part of frequenet path
-              if (bpi.getEdgeProbability(BB, succBB) > llvm::BranchProbability(80, 100)) {
-                auto res = freqPath.insert(succBB);
-                if (res.second != true) {
-                  llvm::errs() << "Path looped";
+        //       // llvm::errs() << "  Successor:\n " << *succBB << "\n";
+        //       // llvm::errs() << "  Cond?: " << branchInst->isConditional() << "\n";
+        //       // llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
+              if (branchInst->isConditional()) {
+                if (bpi.getEdgeProbability(BB, succBB) >= llvm::BranchProbability(80, 100)) {
+                  llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
+                  nextBB = succBB;
                   break;
                 }
-                BB = succBB;
+              } else {
+                nextBB = succBB;
+                break;
               }
             } 
+          } else {
+            break;
           }
+          if (nextBB == header) break;
+          BB = nextBB;
         }
         
-        llvm::errs() << "Basic Block in Freq pth: \n";
+        llvm::errs() << "\n\nBasic Block in Freq pth: \n";
         for (llvm::BasicBlock *BB : freqPath) {
-          llvm::errs() << BB->getName() << "\n";
+          llvm::errs() << *BB << "\n";
         }
       }
 
