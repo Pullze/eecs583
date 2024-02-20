@@ -160,8 +160,10 @@ namespace {
           llvm::errs() << *SI << "\n";
         }
 
+        // Find load that can be hoist
         for (llvm::LoadInst* LI : freqLoads) {
           bool findInFreq = false;
+          bool findInInFreq = false;
 
           llvm::Value* loadPointerValue = LI->getPointerOperand();
           llvm::errs() << "\n\n checking: " << *LI << '\n';
@@ -177,9 +179,38 @@ namespace {
             }
           }
 
+          // if depends on any instruction in the freq path
+          for (llvm::BasicBlock* BB : freqPath) {
+            bool term = false;
+            for (llvm::Instruction &I : *BB) {
+              if (&I == LI) continue;
+              for (llvm::Use &U : I.uses()) {
+                llvm::User *user = U.getUser();
+                if (user == LI) {
+                  llvm::errs() << "dep on " << I << '\n';
+                  findInFreq = true;
+                  term = true;
+                  break;
+                }
+              }
+              if (term) break;
+            }
+            if (term) break;
+          }
+
           if (findInFreq) continue;
-          // llvm::errs() << "here\n";
-          invariantLoads.insert(LI);
+
+          // check if there's dependent store in infreq-path
+          for (llvm::StoreInst* SI : inFreqStores) {
+            llvm::Value* storePointerValue = SI->getPointerOperand();
+            if (loadPointerValue == storePointerValue) {
+              llvm::errs() << "find in indfreq " << *SI << '\n';
+              findInInFreq = true;
+              break;
+            }
+          }
+          
+          if (findInInFreq && !findInFreq) invariantLoads.insert(LI);
         }
       }
 
@@ -189,6 +220,13 @@ namespace {
       }
 
       // hoist almost invarians lds to pre-header
+      for (llvm::LoadInst* LI : invariantLoads) {
+        Instruction* I = llvm::dyn_cast<llvm::Instruction>(LI);
+        I->moveBefore(&preHeader->back());
+      }
+
+      llvm::errs() << "\n\nPreheader after hoist: \n";
+      llvm::errs() << *preHeader << '\n';
 
       // find the st dependson almost invariant in infreq-path and fix up
 
