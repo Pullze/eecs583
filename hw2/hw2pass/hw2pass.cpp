@@ -220,9 +220,52 @@ namespace {
       }
 
       // hoist almost invarians lds to pre-header
+      // copy load also to infreq-path
+      int num_var = 0;
+      // map of Load src to a unique alloca
+      std::map<llvm::Value*, llvm::AllocaInst*> allocaMap; 
       for (llvm::LoadInst* LI : invariantLoads) {
-        Instruction* I = llvm::dyn_cast<llvm::Instruction>(LI);
-        I->moveBefore(&preHeader->back());
+        llvm::Value* loadPointerValue = LI->getPointerOperand();
+
+        // if invariant load, alloca and insert modified load into preheader
+        llvm::IRBuilder<> Builder(preHeader->getTerminator());
+        
+        llvm::AllocaInst *AllocaInst;
+        // Create an alloca instruction if src not seen
+        auto it = allocaMap.find(LI->getPointerOperand());
+        if (it != allocaMap.end()) {
+          AllocaInst = it->second;
+        } else {
+          AllocaInst = Builder.CreateAlloca(LI->getType(), nullptr, "var"+std::to_string(num_var));
+          allocaMap[LI->getPointerOperand()] = AllocaInst;
+          llvm::errs() << "\nNew Alloca: " << *AllocaInst << '\n';
+          num_var++;
+        }
+        
+        // Clone the invariant load to pre-header
+        llvm::LoadInst *ClonedLoad = llvm::dyn_cast<llvm::LoadInst>(LI->clone());
+        ClonedLoad->insertBefore(preHeader->getTerminator());
+
+        // Store the load value into stack space
+        llvm::StoreInst *StoreInst = Builder.CreateStore(ClonedLoad, AllocaInst);
+        
+        // Modify store so that store to the stack
+        for (llvm::StoreInst* SI : inFreqStores) {
+          llvm::Value* storePointerValue = SI->getPointerOperand();
+          
+          if (loadPointerValue == storePointerValue) {
+            SI->setOperand(1, AllocaInst);
+            llvm::errs() << "\nModified Store: " << *SI << '\n';
+            llvm::errs() << "\n" << *SI->getParent() << '\n';
+          }
+        }
+
+        // Modify original load to load from stack
+        LI->setOperand(0, AllocaInst);
+        llvm::errs() << "\nModified Load: " << *LI << '\n';
+        llvm::errs() << "\n" << *LI->getParent() << '\n';
+
+        // replace all use of original load
       }
 
       llvm::errs() << "\n\nPreheader after hoist: \n";
