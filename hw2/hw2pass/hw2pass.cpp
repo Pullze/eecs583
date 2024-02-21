@@ -61,12 +61,12 @@ namespace {
       
       // iterate over all loops
       for (llvm::Loop *L : li) {
-        llvm::errs() << "Found a loop:\n";
+        // llvm::errs() << "Found a loop:\n";
 
         // the header BB of the loop
         llvm::BasicBlock *header = L->getHeader();
         preHeader = L->getLoopPreheader();
-        llvm::errs() << "Loop header:\n " << *header << "\n";
+        // llvm::errs() << "Loop header:\n " << *header << "\n";
         
         // iterate all the BB in all the loops and find the frequent path.
         llvm:: BasicBlock *BB = header;
@@ -80,11 +80,11 @@ namespace {
           llvm::BranchInst *branchInst = llvm::dyn_cast<llvm::BranchInst>(BB->getTerminator());
           // check the terminator's edges and pick the most frequent (above 80% one)
           if (branchInst) {
-            llvm::errs() << " br Inst:\n " << *branchInst << "\n";
+            // llvm::errs() << " br Inst:\n " << *branchInst << "\n";
             for (llvm::BasicBlock *succBB : successors(BB)) {
               if (branchInst->isConditional()) {
                 if (bpi.getEdgeProbability(BB, succBB) >= llvm::BranchProbability(80, 100)) {
-                  llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
+                  // llvm::errs() << "Br prob: " << bpi.getEdgeProbability(BB, succBB) << "\n";
                   nextBB = succBB;
                   break;
                 }
@@ -100,26 +100,26 @@ namespace {
           BB = nextBB;
         }
         
-        llvm::errs() << "\n\nBasic Block in Freq pth: \n";
-        for (llvm::BasicBlock *BB : freqPath) {
-          llvm::errs() << BB << "\n";
-        }
+        // llvm::errs() << "\n\nBasic Block in Freq pth: \n";
+        // for (llvm::BasicBlock *BB : freqPath) {
+          // llvm::errs() << BB << "\n";
+        // }
 
-        llvm::errs() << "\n\nBasic Block NOT in Freq pth: \n";
+        // llvm::errs() << "\n\nBasic Block NOT in Freq pth: \n";
         for (llvm::BasicBlock &BB : F) {
           if (freqPath.find(&BB) == freqPath.end() && !BB.isEntryBlock() && !isExitBlock(BB)) {
             inFreqPath.insert(&BB);
-            llvm::errs() << &BB << "  not in fp \n";
+            // llvm::errs() << &BB << "  not in fp \n";
           }
         }
 
         if (inFreqPath.empty()) {
-          llvm::errs() << "no infreq bb, fin ";
+          // llvm::errs() << "no infreq bb, fin ";
           return PreservedAnalyses::all();
         }
 
-        llvm::errs() << "\n\nLoop Preheader: \n";
-        llvm::errs() << preHeader << "\n";
+        // llvm::errs() << "\n\nLoop Preheader: \n";
+        // llvm::errs() << preHeader << "\n";
 
         // loop through the freq path and check all loads
         // llvm::errs() << "Load in fp: \n";
@@ -145,20 +145,20 @@ namespace {
           }
         }
 
-        llvm::errs() << "\n\nLD in frq: \n";
-        for (llvm::LoadInst* LI : freqLoads) {
-          llvm::errs() << *LI << "\n";
-        }
+        // llvm::errs() << "\n\nLD in frq: \n";
+        // for (llvm::LoadInst* LI : freqLoads) {
+          // llvm::errs() << *LI << "\n";
+        // }
 
-        llvm::errs() << "\n\nST in frq: \n";
-        for (llvm::StoreInst* SI : freqStores) {
-          llvm::errs() << *SI << "\n";
-        }
+        // llvm::errs() << "\n\nST in frq: \n";
+        // for (llvm::StoreInst* SI : freqStores) {
+          // llvm::errs() << *SI << "\n";
+        // }
 
-        llvm::errs() << "\n\nST in INfrq: \n";
-        for (llvm::StoreInst* SI : inFreqStores) {
-          llvm::errs() << *SI << "\n";
-        }
+        // llvm::errs() << "\n\nST in INfrq: \n";
+        // for (llvm::StoreInst* SI : inFreqStores) {
+          // llvm::errs() << *SI << "\n";
+        // }
 
         // Find load that can be hoist
         for (llvm::LoadInst* LI : freqLoads) {
@@ -166,14 +166,14 @@ namespace {
           bool findInInFreq = false;
 
           llvm::Value* loadPointerValue = LI->getPointerOperand();
-          llvm::errs() << "\n\n checking: " << *LI << '\n';
+          // llvm::errs() << "\n\n checking: " << *LI << '\n';
           // llvm::errs() << "ld opreand: " << *loadPointerValue << '\n';
 
           // if find a corresponding store in freqPath, then variant.
           for (llvm::StoreInst* SI : freqStores) {
             llvm::Value* storePointerValue = SI->getPointerOperand();
             if (loadPointerValue == storePointerValue) {
-              llvm::errs() << "same op as " << *SI << '\n';
+              // llvm::errs() << "same op as " << *SI << '\n';
               findInFreq = true;
               break;
             }
@@ -187,7 +187,7 @@ namespace {
               for (llvm::Use &U : I.uses()) {
                 llvm::User *user = U.getUser();
                 if (user == LI) {
-                  llvm::errs() << "dep on " << I << '\n';
+                  // llvm::errs() << "dep on " << I << '\n';
                   findInFreq = true;
                   term = true;
                   break;
@@ -204,7 +204,7 @@ namespace {
           for (llvm::StoreInst* SI : inFreqStores) {
             llvm::Value* storePointerValue = SI->getPointerOperand();
             if (loadPointerValue == storePointerValue) {
-              llvm::errs() << "find in indfreq " << *SI << '\n';
+              // llvm::errs() << "find in indfreq " << *SI << '\n';
               findInInFreq = true;
               break;
             }
@@ -214,9 +214,9 @@ namespace {
         }
       }
 
-      llvm::errs() << "\n\nInvariant LDs: \n";
+      // llvm::errs() << "\n\nInvariant LDs: \n";
       for (llvm::LoadInst* LI : invariantLoads) {
-        llvm::errs() << *LI << "\n";
+        // llvm::errs() << *LI << "\n";
       }
 
       // hoist almost invarians lds to pre-header
@@ -238,7 +238,7 @@ namespace {
         } else {
           AllocaInst = Builder.CreateAlloca(LI->getType(), nullptr, "var"+std::to_string(num_var));
           allocaMap[LI->getPointerOperand()] = AllocaInst;
-          llvm::errs() << "\nNew Alloca: " << *AllocaInst << '\n';
+          // llvm::errs() << "\nNew Alloca: " << *AllocaInst << '\n';
           num_var++;
         }
         
@@ -255,21 +255,21 @@ namespace {
           
           if (loadPointerValue == storePointerValue) {
             SI->setOperand(1, AllocaInst);
-            llvm::errs() << "\nModified Store: " << *SI << '\n';
-            llvm::errs() << "\n" << *SI->getParent() << '\n';
+            // llvm::errs() << "\nModified Store: " << *SI << '\n';
+            // llvm::errs() << "\n" << *SI->getParent() << '\n';
           }
         }
 
         // Modify original load to load from stack
         LI->setOperand(0, AllocaInst);
-        llvm::errs() << "\nModified Load: " << *LI << '\n';
-        llvm::errs() << "\n" << *LI->getParent() << '\n';
+        // llvm::errs() << "\nModified Load: " << *LI << '\n';
+        // llvm::errs() << "\n" << *LI->getParent() << '\n';
 
         // replace all use of original load
       }
 
-      llvm::errs() << "\n\nPreheader after hoist: \n";
-      llvm::errs() << *preHeader << '\n';
+      // llvm::errs() << "\n\nPreheader after hoist: \n";
+      // llvm::errs() << *preHeader << '\n';
 
       // find the st dependson almost invariant in infreq-path and fix up
 
